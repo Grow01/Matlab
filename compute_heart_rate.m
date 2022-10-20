@@ -1,3 +1,6 @@
-function heart_rate= compute_heart_rate(N_picchi,tempo)
-    heart_rate=N_picchi*60/tempo;
+function [bpm] = compute_heart_rate(Maxindex,tmax)
+
+fs=length(Maxindex)/tmax;
+bpm=fs*60;
+
 end
