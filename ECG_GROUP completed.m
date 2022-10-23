@@ -151,37 +151,81 @@ hold off
  % lo stimo circa pari alla QRS duration
 % ne prendo due per confronto con il QRS medio
 durQRS1 = zeros([1,Numfin1]);
-maxQRS1 = zeros([1,Numfin1]);
-for i=1:Numfin1
-    maxQRS1(1,i) = max(matrixQRS1(i,:));
-end
-for i=1:Numfin1
-    [picchi1,indici1] = findpeaks(matrixQRS1(i,:));
-    for j=1:length(picchi1)
-        if(picchi1(j) == maxQRS1(1,i))
-            tmt = j;
-            durQRS1(1,i) = timeQRS1(indici1(j+2)) - timeQRS1(indici1(j-2));
-        end
-    end
-end
-meandurQRS1 = mean(durQRS1);
-
 durQRS2 = zeros([1,Numfin2]);
-maxQRS2 = zeros([1,Numfin2]);
-for i=1:Numfin2
-    maxQRS2(1,i) = max(matrixQRS2(i,:));
+
+% detrend
+newmatrixQRS1 = zeros([Numfin1,Nm1]);
+newmatrixQRS2 = zeros([Numfin2,Nm2]);
+k1 = 5; % campioni per finestra detrend
+k2 = 3;
+
+for i=1:Numfin1
+    Nk = round(numel(matrixQRS1(i,:))/k1);
+    D1 = detrend(reshape(matrixQRS1(i,:),Nk,[]));
+    newmatrixQRS1(i,:) = reshape(D1,[1,numel(matrixQRS1(i,:))]);
 end
 for i=1:Numfin2
-    [picchi2,indici2] = findpeaks(matrixQRS2(i,:));
-    for j=1:length(picchi2)
-        if(picchi2(j) == maxQRS2(1,i))
-            tmt = j;
-            durQRS2(1,i) = timeQRS2(indici2(j+2)) - timeQRS2(indici2(j-2));
-        end
-    end
+    Nk = round(numel(matrixQRS2(i,:))/k2);
+    D2 = detrend(reshape(matrixQRS2(i,:),Nk,[]));
+    newmatrixQRS2(i,:) = reshape(D2,[1,numel(matrixQRS2(i,:))]);
 end
 
-meandurQRS2 = mean(durQRS2);
+% abs
+
+ABS1 = zeros([Numfin1,Nm1]);
+ABS2 = zeros([Numfin2,Nm2]);
+
+for i=1:Numfin1
+    ABS1(i,:) = abs(newmatrixQRS1(i,:));
+end
+for i=1:Numfin2
+    ABS2(i,:) = abs(newmatrixQRS2(i,:));
+end
+
+% findpeaks (selezione solo picchi R e minimi S)
+
+sogliaQRS = 0.013;
+K1 = 1.73;   % rapporto tra QRS medio e RS medio nel primo e secondo caso ottenuto da grafici QRS medi 
+K2 = 1.82;   % dalla durata RS posso stimare quella del complesso totale 
+
+for i=1:Numfin1
+    [picchi,indici] = findpeaks(ABS1(i,:), 'MinPeakHeight',sogliaQRS,'NPeaks',2,'MinPeakDistance',8);
+    durQRS1(1,i) = (timeQRS1(indici(2)) - timeQRS1(indici(1)))*K1;
+end
+for i=1:Numfin2
+    [picchi,indici] = findpeaks(ABS2(i,:), 'MinPeakHeight',sogliaQRS,'NPeaks',2, 'MinPeakDistance',8);
+    durQRS2(1,i) = (timeQRS2(indici(2)) - timeQRS2(indici(1)))*K2;
+end
+% volendo si può aggiungere un controllo in più con un ciclo for che prende
+% solo le durate minori di 0,12 sec e ne fa la media, in modo da eliminare
+% gli effetti del rumore ed eventuali errori 
+
+% meandurQRS1 = mean(durQRS1);
+% meandurQRS2 = mean(durQRS2);
+
+sumQRS = 0;
+cont = 0;
+for i=1:Numfin1
+    if(durQRS1(1,i) <= 0.12)
+        tmt = sumQRS;
+        sumQRS = tmt + durQRS1(1,i);
+        contt = cont;
+        cont = contt + 1;
+    end
+end
+meandurQRS1 = sumQRS/cont;
+sumQRS = 0;
+cont = 0;
+for i=1:Numfin2
+    if(durQRS2(1,i) <= 0.12)
+        tmt = sumQRS;
+        sumQRS = tmt + durQRS2(1,i);
+        contt = cont;
+        cont = contt + 1;
+    end
+end
+meandurQRS2 = sumQRS/cont;
+
 disp('Mean QRS Complex Duration 1 [sec] 1')
 disp(meandurQRS1)
 disp('Mean QRS Complex Duration 2 [sec] 1')
